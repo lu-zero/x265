@@ -146,6 +146,59 @@ typedef struct x265_frame_stats
     x265_cu_stats    cuStats;
 } x265_frame_stats;
 
+/* Arbitrary user SEI:
+ * Payload size is in bytes and the payload pointer must be valid.
+ * Payload types and syntax can be found in Annex D of the H.264 Specification.
+ * SEI payload alignment bits as described in Annex D must be included at the
+ * end of the payload if needed.
+ * The payload should not be NAL-encapsulated.
+ * Payloads are written first in order of input, apart from in the case when HRD
+ * is enabled where payloads are written after the Buffering Period SEI. */
+
+typedef enum
+{
+    SEI_BUFFERING_PERIOD                     = 0,
+    SEI_PICTURE_TIMING                       = 1,
+    SEI_PAN_SCAN_RECT                        = 2,
+    SEI_FILLER_PAYLOAD                       = 3,
+    SEI_USER_DATA_REGISTERED_ITU_T_T35       = 4,
+    SEI_USER_DATA_UNREGISTERED               = 5,
+    SEI_RECOVERY_POINT                       = 6,
+    SEI_SCENE_INFO                           = 9,
+    SEI_FULL_FRAME_SNAPSHOT                  = 15,
+    SEI_PROGRESSIVE_REFINEMENT_SEGMENT_START = 16,
+    SEI_PROGRESSIVE_REFINEMENT_SEGMENT_END   = 17,
+    SEI_FILM_GRAIN_CHARACTERISTICS           = 19,
+    SEI_POST_FILTER_HINT                     = 22,
+    SEI_TONE_MAPPING_INFO                    = 23,
+    SEI_FRAME_PACKING                        = 45,
+    SEI_DISPLAY_ORIENTATION                  = 47,
+    SEI_SOP_DESCRIPTION                      = 128,
+    SEI_ACTIVE_PARAMETER_SETS                = 129,
+    SEI_DECODING_UNIT_INFO                   = 130,
+    SEI_TEMPORAL_LEVEL0_INDEX                = 131,
+    SEI_DECODED_PICTURE_HASH                 = 132,
+    SEI_SCALABLE_NESTING                     = 133,
+    SEI_REGION_REFRESH_INFO                  = 134,
+    SEI_MASTERING_DISPLAY_INFO               = 137,
+    SEI_CONTENT_LIGHT_LEVEL_INFO             = 144,
+} SEIPayloadType;
+
+typedef struct x265_sei_payload
+{
+    int payload_size;
+    SEIPayloadType payload_type;
+    uint8_t *payload;
+} x265_sei_payload;
+
+typedef struct x265_sei
+{
+    int num_payloads;
+    x265_sei_payload *payloads;
+    /* In: optional callback to free each payload AND x264_sei_payload_t when used. */
+    void (*sei_free)( void* );
+} x265_sei;
+
 /* Used to pass pictures into the encoder, and to get picture data back out of
  * the encoder.  The input and output semantics are different */
 typedef struct x265_picture
@@ -209,7 +262,7 @@ typedef struct x265_picture
 
     /* An array of quantizer offsets to be applied to this image during encoding.
      * These are added on top of the decisions made by rateControl.
-     * Adaptive quantization must be enabled to use this feature. These quantizer 
+     * Adaptive quantization must be enabled to use this feature. These quantizer
      * offsets should be given for each 16x16 block. Behavior if quant
      * offsets differ between encoding passes is undefined. */
     float            *quantOffsets;
@@ -217,6 +270,8 @@ typedef struct x265_picture
     /* Frame level statistics */
     x265_frame_stats frameData;
 
+    /* Arbitrary user SEI */
+    x265_sei    extra_sei;
 } x265_picture;
 
 typedef enum
@@ -416,7 +471,7 @@ typedef struct x265_zone
     int   qp;
     float bitrateFactor;
 } x265_zone;
-    
+
 /* x265 input parameters
  *
  * For version safety you may use x265_param_alloc/free() to manage the
@@ -615,7 +670,7 @@ typedef struct x265_param
 
     /* Enables the emission of a user data SEI with the stream headers which
      * describes the encoder version, build info, and parameters. This is
-     * very helpful for debugging, but may interfere with regression tests. 
+     * very helpful for debugging, but may interfere with regression tests.
      * Default enabled */
     int       bEmitInfoSEI;
 
@@ -1049,7 +1104,7 @@ typedef struct x265_param
 
         /* Enable slow and a more detailed first pass encode in multi pass rate control */
         int       bEnableSlowFirstPass;
-        
+
         /* rate-control overrides */
         int        zoneCount;
         x265_zone* zones;
@@ -1062,13 +1117,13 @@ typedef struct x265_param
          * values will affect all encoders in the same process */
         const char* lambdaFileName;
 
-        /* Enable stricter conditions to check bitrate deviations in CBR mode. May compromise 
+        /* Enable stricter conditions to check bitrate deviations in CBR mode. May compromise
          * quality to maintain bitrate adherence */
         int bStrictCbr;
 
-        /* Enable adaptive quantization at CU granularity. This parameter specifies 
-         * the minimum CU size at which QP can be adjusted, i.e. Quantization Group 
-         * (QG) size. Allowed values are 64, 32, 16 provided it falls within the 
+        /* Enable adaptive quantization at CU granularity. This parameter specifies
+         * the minimum CU size at which QP can be adjusted, i.e. Quantization Group
+         * (QG) size. Allowed values are 64, 32, 16 provided it falls within the
          * inclusuve range [maxCUSize, minCUSize]. Experimental, default: maxCUSize*/
         uint32_t qgSize;
     } rc;

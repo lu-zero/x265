@@ -275,7 +275,7 @@ void FrameEncoder::threadMain()
         m_localTldIdx = 0;
     }
 
-    m_done.trigger();     /* signal that thread is initialized */ 
+    m_done.trigger();     /* signal that thread is initialized */
     m_enable.wait();      /* Encoder::encode() triggers this event */
 
     while (m_threadActive)
@@ -511,7 +511,36 @@ void FrameEncoder::compressFrame()
         m_nalList.serialize(NAL_UNIT_PREFIX_SEI, m_bs);
     }
 
-    /* CQP and CRF (without capped VBV) doesn't use mid-frame statistics to 
+    /* write extra sei */
+    for (int i = 0; i < m_frame->m_extra_sei.num_payloads; i++)
+    {
+        x265_sei_payload *payload = m_frame->m_extra_sei.payloads + i;
+        m_bs.resetBits();
+        SEIuserDataUnregistered sei;
+
+        sei.m_payloadType = payload->payload_type;
+        sei.m_userDataLength = payload->payload_size;
+        sei.m_userData = payload->payload;
+
+        sei.write(m_bs, *slice->m_sps);
+        m_bs.writeByteAlignment();
+        m_nalList.serialize(NAL_UNIT_PREFIX_SEI, m_bs);
+
+        if (m_frame->m_extra_sei.sei_free)
+        {
+            m_frame->m_extra_sei.sei_free(payload->payload);
+            payload->payload = NULL;
+        }
+    }
+
+    if (m_frame->m_extra_sei.sei_free)
+    {
+        m_frame->m_extra_sei.sei_free(m_frame->m_extra_sei.payloads);
+        m_frame->m_extra_sei.payloads = NULL;
+        m_frame->m_extra_sei.sei_free = NULL;
+    }
+
+    /* CQP and CRF (without capped VBV) doesn't use mid-frame statistics to
      * tune RateControl parameters for other frames.
      * Hence, for these modes, update m_startEndOrder and unlock RC for previous threads waiting in
      * RateControlEnd here, after the slice contexts are initialized. For the rest - ABR
@@ -940,7 +969,7 @@ void FrameEncoder::processRowEncoder(int intRow, ThreadLocalData& tld)
             /* TODO: use defines from slicetype.h for lowres block size */
             uint32_t block_y = (ctu->m_cuPelY >> g_maxLog2CUSize) * noOfBlocks;
             uint32_t block_x = (ctu->m_cuPelX >> g_maxLog2CUSize) * noOfBlocks;
-            
+
             cuStat.vbvCost = 0;
             cuStat.intraVbvCost = 0;
             for (uint32_t h = 0; h < noOfBlocks && block_y < maxBlockRows; h++, block_y++)

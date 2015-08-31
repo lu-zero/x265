@@ -537,10 +537,11 @@ int Encoder::encode(const x265_picture* pic_in, x265_picture* pic_out)
 
         inFrame->m_poc       = ++m_pocLast;
         inFrame->m_userData  = pic_in->userData;
+        inFrame->m_extra_sei = pic_in->extra_sei;
         inFrame->m_pts       = pic_in->pts;
         inFrame->m_forceqp   = pic_in->forceqp;
         inFrame->m_param     = m_reconfigured ? m_latestParam : m_param;
-        
+
         if (pic_in->quantOffsets != NULL)
         {
             int cuCount = inFrame->m_lowres.maxBlocksInRow * inFrame->m_lowres.maxBlocksInCol;
@@ -773,7 +774,7 @@ int Encoder::encode(const x265_picture* pic_in, x265_picture* pic_out)
                 m_aborted = true;
         }
         else if (m_encodedFrameNum)
-            m_rateControl->setFinalFrameCount(m_encodedFrameNum); 
+            m_rateControl->setFinalFrameCount(m_encodedFrameNum);
     }
     while (m_bZeroLatency && ++pass < 2);
 
@@ -785,7 +786,7 @@ int Encoder::reconfigureParam(x265_param* encParam, x265_param* param)
     encParam->maxNumReferences = param->maxNumReferences; // never uses more refs than specified in stream headers
     encParam->bEnableLoopFilter = param->bEnableLoopFilter;
     encParam->deblockingFilterTCOffset = param->deblockingFilterTCOffset;
-    encParam->deblockingFilterBetaOffset = param->deblockingFilterBetaOffset; 
+    encParam->deblockingFilterBetaOffset = param->deblockingFilterBetaOffset;
     encParam->bEnableFastIntra = param->bEnableFastIntra;
     encParam->bEnableEarlySkip = param->bEnableEarlySkip;
     encParam->bEnableTemporalMvp = param->bEnableTemporalMvp;
@@ -1020,7 +1021,7 @@ void Encoder::printSummary()
                  (double)cuStats.countPModeMasters / cuStats.totalCTUs,
                  (double)cuStats.pmodeBlockTime / cuStats.countPModeMasters);
         x265_log(m_param, X265_LOG_INFO, "CU:       %.3lf slaves per PMODE master, each took average of %.3lf ms\n",
-                 (double)cuStats.countPModeTasks / cuStats.countPModeMasters, 
+                 (double)cuStats.countPModeTasks / cuStats.countPModeMasters,
                  ELAPSED_MSEC(cuStats.pmodeTime) / cuStats.countPModeTasks);
     }
 
@@ -1347,9 +1348,9 @@ void Encoder::getStreamHeaders(NALList& list, Entropy& sbacCoder, Bitstream& bs)
                         "Copyright 2013-2015 (c) Multicoreware Inc - "
                         "http://x265.org - options: %s",
                         X265_BUILD, PFX(version_str), PFX(build_info_str), opts);
-                
+
                 bs.resetBits();
-                SEIuserDataUnregistered idsei;
+                SEIx265ID idsei;
                 idsei.m_userData = (uint8_t*)buffer;
                 idsei.m_userDataLength = (uint32_t)strlen(buffer);
                 idsei.write(bs, m_sps);

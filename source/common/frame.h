@@ -35,7 +35,7 @@ class FrameData;
 class PicYuv;
 struct SPS;
 
-#define IS_REFERENCED(frame) (frame->m_lowres.sliceType != X265_TYPE_B) 
+#define IS_REFERENCED(frame) (frame->m_lowres.sliceType != X265_TYPE_B)
 
 class Frame
 {
@@ -69,6 +69,7 @@ public:
     Frame*                 m_prev;
     x265_param*            m_param;              // Points to the latest param set for the frame.
     x265_analysis_data     m_analysisData;
+    x265_sei               m_extra_sei;
     Frame();
 
     bool create(x265_param *param, float* quantOffsets);

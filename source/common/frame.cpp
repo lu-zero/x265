@@ -121,5 +121,12 @@ void Frame::destroy()
         delete[] m_quantOffsets;
     }
 
+    if( m_extra_sei.sei_free )
+    {
+        for( int i = 0; i < m_extra_sei.num_payloads; i++ )
+            m_extra_sei.sei_free( m_extra_sei.payloads[i].payload );
+        m_extra_sei.sei_free( m_extra_sei.payloads );
+    }
+
     m_lowres.destroy();
 }
